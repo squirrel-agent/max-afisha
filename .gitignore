@@ -1,0 +1,17 @@
+.env
+__pycache__/
+*.py[cod]
+*.sqlite3
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+.idea/
+.vscode/
+.DS_Store
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+models/*.pt
+models/*.bin
+!.env.example

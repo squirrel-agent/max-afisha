@@ -1,0 +1,105 @@
+version: '1.0'
+solution: max-afisha
+base_url: "https://max-afisha-events.duckdns.org"
+
+required_checks:
+  - id: health
+    method: GET
+    path: /health
+    role: public
+    request: {}
+    expected_status: [200]
+    expected_response:
+      content_type: application/json
+      required_fields: [status, service, version]
+  - id: cities
+    method: GET
+    path: /api/cities
+    role: public
+    request: {}
+    expected_status: [200]
+    expected_response:
+      content_type: application/json
+      type: array
+  - id: create_local_user
+    method: POST
+    path: /api/users
+    role: public-dev-flow
+    request:
+      headers: {Content-Type: application/json}
+      body: {city: moscow}
+    expected_status: [200]
+    expected_response:
+      content_type: application/json
+      required_fields: [id, city]
+      save:
+        user_id: $.id
+  - id: save_five_answers
+    method: PUT
+    path: /api/users/{user_id}/preferences
+    role: public-dev-flow
+    request:
+      path_params: {user_id: '${user_id}'}
+      headers: {Content-Type: application/json}
+      body:
+        categories: []
+        when: weekend
+        company_size: pair
+        company: pair
+        vibe: calm
+        duration: medium
+        budget: '1500'
+        preferred_period: weekend
+        questionnaire_version: v3-five-q-thresholded
+        novelty_preference: 0.7
+    expected_status: [200]
+    expected_response:
+      content_type: application/json
+      required_fields: [ok, profile_text]
+  - id: recommendations
+    method: GET
+    path: /api/recommendations/{user_id}
+    role: public-dev-flow
+    request:
+      path_params: {user_id: '${user_id}'}
+      query: {limit: 40}
+    expected_status: [200]
+    expected_response:
+      content_type: application/json
+      required_fields: [model_version, run_id, has_relevant, fallback_reason, relevance, podium, items]
+      invariants:
+        - If has_relevant is false, items must be empty and frontend must use the separate baseline feed.
+        - A low-score candidate must not be inserted only to make the result non-empty.
+  - id: fallback_events
+    method: GET
+    path: /api/events
+    role: public
+    request:
+      query: {city: moscow, limit: 5}
+    expected_status: [200]
+    expected_response:
+      content_type: application/json
+      type: array
+optional_checks:
+  - id: seed_synthetic_data
+    method: POST
+    path: /api/dev/seed
+    role: admin
+    request:
+      headers: {Authorization: 'Bearer ${ADMIN_TOKEN}'}
+    expected_status: [200, 401]
+    expected_response:
+      content_type: application/json
+  - id: max_signed_session
+    method: POST
+    path: /api/max/session
+    role: max-user
+    request:
+      headers: {Content-Type: application/json}
+      body:
+        init_data: '${REAL_MAX_INIT_DATA}'
+        city: moscow
+    expected_status: [200]
+    expected_response:
+      content_type: application/json
+      required_fields: [id, city, max_user_id, authenticated_via]

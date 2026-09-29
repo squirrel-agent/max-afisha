@@ -1,0 +1,7 @@
+httpx==0.28.1
+selectolax==0.3.34
+pydantic==2.11.9
+dateparser==1.2.2
+playwright==1.55.0
+fastapi==0.117.1
+uvicorn[standard]==0.36.0

@@ -1,0 +1,65 @@
+{
+  "events": [
+    {
+      "source": "test_data",
+      "source_event_id": "sample-calm-exhibition-1",
+      "source_url": "https://example.invalid/test/sample-calm-exhibition-1",
+      "city": "moscow",
+      "title": "Тестовая выставка цифрового искусства",
+      "description": "Синтетическое событие для локальной проверки ingestion и рекомендаций.",
+      "category": "exhibition",
+      "genres": [
+        "digital-art"
+      ],
+      "tags": [
+        "calm",
+        "curious",
+        "art"
+      ],
+      "venue_name": "Тестовая площадка",
+      "address": "Тестовый адрес",
+      "start_at": "2030-10-05T18:00:00+03:00",
+      "end_at": "2030-10-05T19:30:00+03:00",
+      "price_min": 0,
+      "price_max": 0,
+      "is_free": true,
+      "age_min": 12,
+      "image_url": null,
+      "ticket_url": null,
+      "raw_payload": {
+        "synthetic": true,
+        "purpose": "hackathon reproducibility"
+      }
+    },
+    {
+      "source": "test_data",
+      "source_event_id": "sample-active-sport-1",
+      "source_url": "https://example.invalid/test/sample-active-sport-1",
+      "city": "moscow",
+      "title": "Тестовая городская тренировка",
+      "description": "Синтетическое активное событие для проверки фильтров и fallback-ленты.",
+      "category": "sport",
+      "genres": [
+        "fitness"
+      ],
+      "tags": [
+        "active",
+        "friends"
+      ],
+      "venue_name": "Тестовая спортивная площадка",
+      "address": "Тестовый адрес",
+      "start_at": "2030-10-06T12:00:00+03:00",
+      "end_at": "2030-10-06T13:30:00+03:00",
+      "price_min": 500,
+      "price_max": 500,
+      "is_free": false,
+      "age_min": 16,
+      "image_url": null,
+      "ticket_url": null,
+      "raw_payload": {
+        "synthetic": true,
+        "purpose": "hackathon reproducibility"
+      }
+    }
+  ]
+}

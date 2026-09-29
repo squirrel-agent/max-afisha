@@ -1,0 +1,23 @@
+.citySearch{position:relative;width:100%;z-index:1}
+.citySearchInput{height:54px;border:1px solid #e3e3e9;border-radius:15px;background:#fafafd;display:flex;align-items:center;gap:11px;padding:0 15px;color:#898995;transition:border-color .15s,box-shadow .15s}
+.citySearchInput:focus-within{background:#fff;border-color:#7867ff;box-shadow:0 0 0 4px #7867ff17}
+.citySearchInput input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:#17171c;font-size:15px}
+.citySearchInput input::placeholder{color:#a0a0a9}
+.citySearchInput input:disabled{opacity:.65}
+.cityClear{display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:50%;background:#eeeef2;color:#777;cursor:pointer}
+.citySuggestions{position:absolute;left:0;right:0;top:calc(100% + 8px);background:white;border:1px solid #ededf1;border-radius:16px;padding:6px;box-shadow:0 14px 36px #1514261c;max-height:240px;overflow:auto;z-index:3}
+.citySuggestion{width:100%;border:0;background:#fff;display:flex;align-items:center;text-align:left;gap:12px;padding:10px;border-radius:11px;cursor:pointer;color:#242329}
+.citySuggestion:hover,.citySuggestion.active{background:#f5f4ff}
+.citySuggestionIcon{width:36px;height:36px;border-radius:11px;background:#f1efff;color:#7867ff;display:grid;place-items:center;flex:none}
+.citySuggestionText{display:grid;gap:3px;flex:1}
+.citySuggestionText strong{font-size:14px;font-weight:650}
+.citySuggestionText small{font-size:12px;color:#8a8992}
+.cityCheck{color:#7867ff}
+.cityNoResults{margin:0;padding:15px 12px;color:#888;font-size:14px}
+.onboardingCity{position:relative;z-index:2;background:#fff;padding:19px;border:1px solid #eeedf2;border-radius:18px;margin:24px 0 28px}
+.onboardingCity h2{font-size:14px;margin:0 0 12px}
+.onboardingCitySelected{display:block;margin:10px 2px 0;color:#85838d;font-size:12px}
+.onboardingSectionTitle{font-size:16px;margin:0}
+.onboarding{padding-top:32px}
+.onboarding h1{margin-top:36px}
+@media(max-width:600px){.onboarding{padding-top:24px}.onboarding h1{margin-top:30px}}

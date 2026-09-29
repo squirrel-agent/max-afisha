@@ -1,0 +1,426 @@
+openapi: 3.1.0
+info:
+  title: MAX Neural Afisha API
+  version: v3-thresholded
+  description: API for five-question event recommendations, fallback feed, ingestion and MAX Mini App authentication.
+servers:
+  - url: http://localhost:8000
+    description: Local Docker evaluator
+paths:
+  /health:
+    get:
+      tags: [system]
+      summary: Backend health
+      responses:
+        '200':
+          description: Backend is running
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service, version]
+                properties:
+                  status: {type: string, const: ok}
+                  service: {type: string}
+                  version: {type: string}
+  /api/cities:
+    get:
+      tags: [cities]
+      summary: Supported cities
+      responses:
+        '200':
+          description: City catalogue
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {type: object}
+  /api/events:
+    get:
+      tags: [events]
+      summary: Current/future event feed
+      parameters:
+        - {name: city, in: query, schema: {type: string}}
+        - {name: category, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+      responses:
+        '200':
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Event'}
+  /api/events/{event_id}:
+    get:
+      tags: [events]
+      summary: Event details
+      parameters:
+        - {$ref: '#/components/parameters/EventId'}
+      responses:
+        '200':
+          description: Event
+          content: {application/json: {schema: {$ref: '#/components/schemas/Event'}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/users:
+    post:
+      tags: [users]
+      summary: Create local development user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {city: {type: string, default: moscow}}
+      responses:
+        '200':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, city]
+                properties:
+                  id: {type: string, format: uuid}
+                  city: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /api/max/session:
+    post:
+      tags: [max]
+      summary: Verify MAX initData and create/find local user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [init_data]
+              properties:
+                init_data: {type: string, minLength: 1}
+                city: {type: string, default: moscow}
+      responses:
+        '200':
+          description: Authenticated MAX-backed user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, city, max_user_id, authenticated_via]
+                properties:
+                  id: {type: string, format: uuid}
+                  city: {type: string}
+                  max_user_id: {type: integer}
+                  authenticated_via: {type: string, const: max_init_data}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {description: Invalid/expired MAX initData}
+        '503': {description: MAX token is not configured on backend}
+  /api/users/{user_id}/city:
+    put:
+      tags: [users]
+      summary: Update city
+      parameters: [{$ref: '#/components/parameters/UserId'}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {type: object, required: [city], properties: {city: {type: string}}}}}
+      responses:
+        '200': {description: Updated}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/users/{user_id}/preferences:
+    put:
+      tags: [users]
+      summary: Save five-question preference profile
+      parameters: [{$ref: '#/components/parameters/UserId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Preferences'}
+      responses:
+        '200': {description: Preferences saved}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/users/{user_id}/interactions:
+    post:
+      tags: [users]
+      summary: Record event interaction
+      parameters: [{$ref: '#/components/parameters/UserId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [event_id, action]
+              properties:
+                event_id: {type: string, format: uuid}
+                action: {type: string, enum: [view, like, dislike, save, share]}
+                run_id: {type: [string, 'null'], format: uuid}
+                position: {type: [integer, 'null'], minimum: 1}
+                surface: {type: [string, 'null']}
+                algorithm_version: {type: [string, 'null']}
+      responses:
+        '200': {description: Interaction saved}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/recommendations/{user_id}:
+    get:
+      tags: [recommendations]
+      summary: Thresholded personalized recommendations
+      description: Returns empty personalized items with fallback_reason instead of padding the response with low-relevance candidates.
+      parameters:
+        - {$ref: '#/components/parameters/UserId'}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 40}}
+        - {name: lat, in: query, schema: {type: number}}
+        - {name: lon, in: query, schema: {type: number}}
+        - {name: radius_km, in: query, schema: {type: number, minimum: 1, maximum: 100, default: 5}}
+      responses:
+        '200':
+          description: Personalized result or explicit no-relevant result
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecommendationResponse'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/recommendations/{user_id}/rating:
+    post:
+      tags: [recommendations]
+      summary: Rate personalized recommendation run
+      parameters: [{$ref: '#/components/parameters/UserId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating: {type: integer, minimum: 1, maximum: 5}
+                run_id: {type: [string, 'null'], format: uuid}
+      responses:
+        '200': {description: Rating saved}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/search/neural:
+    post:
+      tags: [search]
+      summary: Thresholded semantic search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query, city]
+              properties:
+                query: {type: string, minLength: 2, maxLength: 500}
+                city: {type: string, enum: [moscow, saint-petersburg]}
+                period: {type: string, enum: [any, today, weekend], default: any}
+                categories: {type: array, items: {type: string}, default: []}
+                exclude_categories: {type: array, items: {type: string}, default: []}
+                budget_max: {type: [integer, 'null'], minimum: 0}
+                limit: {type: integer, minimum: 1, maximum: 50, default: 20}
+      responses:
+        '200':
+          description: Search results; items may be empty when no candidate reaches min_similarity
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [query, model_version, has_relevant, min_similarity, items]
+                properties:
+                  query: {type: string}
+                  model_version: {type: string}
+                  has_relevant: {type: boolean}
+                  fallback_reason: {type: [string, 'null']}
+                  min_similarity: {type: number}
+                  rejected_low_relevance: {type: integer}
+                  items: {type: array, items: {$ref: '#/components/schemas/Event'}}
+  /api/feed:
+    get:
+      tags: [feed]
+      summary: Baseline city feed
+      parameters:
+        - {name: city, in: query, schema: {type: string, default: moscow}}
+        - {name: category, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+      responses:
+        '200': {description: Baseline feed}
+  /api/ml/status:
+    get:
+      tags: [ml]
+      summary: Embedding coverage
+      responses:
+        '200': {description: ML status}
+  /api/ml/embed-events:
+    post:
+      tags: [ml]
+      security: [{AdminBearer: []}]
+      summary: Create/rebuild event embeddings
+      responses:
+        '200': {description: Embedding job result}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /api/sources/status:
+    get:
+      tags: [sources]
+      summary: Recent source sync status
+      responses:
+        '200': {description: Sync log}
+  /api/sources/{source}/sync:
+    post:
+      tags: [sources]
+      security: [{AdminBearer: []}]
+      summary: Run legacy source adapter
+      parameters:
+        - {name: source, in: path, required: true, schema: {type: string, enum: [afisha_ru, yandex_afisha]}}
+        - {name: city, in: query, required: true, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+      responses:
+        '200': {description: Sync result}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '502': {description: Upstream source failed}
+  /api/admin/ingest:
+    post:
+      tags: [admin]
+      security: [{AdminBearer: []}]
+      summary: Ingest normalized events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events: {type: array, items: {$ref: '#/components/schemas/NormalizedEvent'}}
+      responses:
+        '200': {description: Ingestion result}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /api/admin/parser/run:
+    post:
+      tags: [admin]
+      security: [{AdminBearer: []}]
+      summary: Ask parser-service to run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source: {type: string, enum: [all, yandex_afisha, afisha_ru, vk_events], default: all}
+                city: {type: string, enum: [moscow, saint-petersburg], default: moscow}
+                limit: {type: integer, minimum: 1, maximum: 5000, default: 700}
+      responses:
+        '200': {description: Parser accepted/returned result}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '502': {description: Parser service unavailable or failed}
+  /api/dev/seed:
+    post:
+      tags: [dev]
+      security: [{AdminBearer: []}]
+      summary: Load clearly marked synthetic demo events
+      responses:
+        '200': {description: Demo seed result}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+components:
+  securitySchemes:
+    AdminBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: ADMIN_TOKEN
+  parameters:
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    EventId:
+      name: event_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    BadRequest: {description: Invalid request}
+    NotFound: {description: Resource not found}
+    Unauthorized: {description: Invalid or missing admin token}
+  schemas:
+    Event:
+      type: object
+      required: [id, city, title]
+      properties:
+        id: {type: string, format: uuid}
+        city: {type: string}
+        title: {type: string}
+        description: {type: [string, 'null']}
+        category: {type: [string, 'null']}
+        venue_name: {type: [string, 'null']}
+        address: {type: [string, 'null']}
+        start_at: {type: [string, 'null'], format: date-time}
+        end_at: {type: [string, 'null'], format: date-time}
+        price_min: {type: [integer, 'null']}
+        price_max: {type: [integer, 'null']}
+        is_free: {type: boolean}
+        image_url: {type: [string, 'null']}
+        primary_source: {type: [string, 'null']}
+        source_url: {type: [string, 'null']}
+        ticket_url: {type: [string, 'null']}
+        similarity: {type: [number, 'null']}
+        semantic_similarity: {type: [number, 'null']}
+    Preferences:
+      type: object
+      properties:
+        categories: {type: array, items: {type: string}, default: []}
+        when: {type: [string, 'null']}
+        when_text: {type: [string, 'null']}
+        company_size: {type: [string, 'null']}
+        company_text: {type: [string, 'null']}
+        vibe: {type: [string, 'null']}
+        vibe_text: {type: [string, 'null']}
+        duration: {type: [string, 'null']}
+        duration_text: {type: [string, 'null']}
+        budget: {type: [string, 'null']}
+        budget_text: {type: [string, 'null']}
+        preferred_period: {type: [string, 'null']}
+        questionnaire_version: {type: [string, 'null'], maxLength: 32}
+        novelty_preference: {type: number, default: 0.5}
+    RecommendationResponse:
+      type: object
+      required: [model_version, run_id, has_relevant, podium, items, fallback_reason]
+      properties:
+        model_version: {type: string}
+        run_id: {type: string, format: uuid}
+        has_relevant: {type: boolean}
+        fallback_reason: {type: [string, 'null']}
+        radius_used_km: {type: [number, 'null']}
+        location_source: {type: string}
+        relevance: {type: object, additionalProperties: true}
+        podium: {type: array, items: {type: object, additionalProperties: true}}
+        items_by_type: {type: object, additionalProperties: true}
+        items: {type: array, items: {$ref: '#/components/schemas/Event'}}
+    NormalizedEvent:
+      type: object
+      required: [source, source_event_id, source_url, city, title]
+      properties:
+        source: {type: string}
+        source_event_id: {type: string}
+        source_url: {type: string}
+        city: {type: string}
+        title: {type: string}
+        description: {type: [string, 'null']}
+        category: {type: [string, 'null']}
+        genres: {type: array, items: {type: string}, default: []}
+        tags: {type: array, items: {type: string}, default: []}
+        venue_name: {type: [string, 'null']}
+        address: {type: [string, 'null']}
+        lat: {type: [number, 'null']}
+        lon: {type: [number, 'null']}
+        start_at: {type: [string, 'null'], format: date-time}
+        end_at: {type: [string, 'null'], format: date-time}
+        price_min: {type: [integer, 'null']}
+        price_max: {type: [integer, 'null']}
+        is_free: {type: boolean, default: false}
+        age_min: {type: [integer, 'null']}
+        image_url: {type: [string, 'null']}
+        ticket_url: {type: [string, 'null']}
+        raw_payload: {type: object, additionalProperties: true}
